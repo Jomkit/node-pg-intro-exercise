@@ -20,13 +20,38 @@ router.get("/", async (req, res, next) => {
     }
 })
 
+// PART 2
+// router.get("/:code", async (req, res, next) => {
+//     try{
+//         const results = await db.query(
+//             `SELECT * FROM companies WHERE code=$1`, [req.params.code]
+//         );
+//         if(results.rows.length === 0) throw new ExpressError('Company not found', 404);
+        
+//         return res.json({company: results.rows[0]});
+//     } catch(e){
+//         next(e);
+//     }
+// })
+
+// PART 3
 router.get("/:code", async (req, res, next) => {
     try{
-        const results = await db.query(
+        const companyResults = await db.query(
             `SELECT * FROM companies WHERE code=$1`, [req.params.code]
         );
+
+        if(companyResults.rows.length === 0) throw new ExpressError('Company not found', 404);
         
-        return res.json({company: results.rows[0]});
+        const invoiceResults = await db.query(
+            `SELECT * FROM invoices WHERE comp_code=$1`, [req.params.code]
+        );
+
+        const company = companyResults.rows[0];
+
+        company.invoices = invoiceResults.rows;
+        
+        return res.json({company: company});
     } catch(e){
         next(e);
     }
@@ -55,6 +80,9 @@ router.put("/:code", async (req, res, next) => {
             RETURNING code, name, description`,
             [name, description, req.params.code]
         );
+        
+        if(results.rows.length === 0) throw new ExpressError('Company not found', 404);
+
 
         return res.json({company: results.rows[0]})
     }catch(e) {
@@ -64,6 +92,11 @@ router.put("/:code", async (req, res, next) => {
 
 router.delete("/:code", async (req, res, next) => {
     try{
+        const checkCompany = await db.query(
+            `SELECT * FROM companies WHERE code=$1`, [req.params.code]
+        );
+        if(checkCompany.rows.length === 0 ) throw new ExpressError("Company not found", 404);
+
         const results = await db.query(
             "DELETE FROM companies WHERE code=$1", [req.params.code]);
 
