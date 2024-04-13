@@ -51,16 +51,40 @@ router.post("/", async (req, res, next) => {
 
 router.put("/:id", async (req, res, next) => {
     try{ 
+        const { id } = req.params;
+
+        // Checking invoice exists, and allows us to check if it is already paid/check the paid_date
+        const inv = await db.query(
+            `SELECT * FROM invoices WHERE id=$1`, [id]
+        )
+
+        // Throw error if invoice not found
+        if(inv.rows.length===0) throw new ExpressError("Invoice not found", 404);
+        
+        const { amt, paid } = req.body;
+
+        let paid_date;
+        if(paid){
+            // If paying unpaid invoice, set paid_date to to today
+            paid_date = new Date(Date.now());
+        }else if(!paid){
+            // If unpaying, set paid_date to null
+            paid_date = null;
+        }else{
+            // Else keep current paid_date
+            paid_date = inv.rows[0].paid_date;
+        }
+
         const result = await db.query(
-            `UPDATE invoices SET amt=$1
+            `UPDATE invoices SET amt=$1, paid=$3, paid_date=$4
             WHERE id=$2
             RETURNING *`,
-            [req.body.amt, req.params.id]
+            [amt, req.params.id, paid, paid_date]
         );
 
-        if(result.rows.length===0) throw new ExpressError("Invoice not found", 404);
+        // if(result.rows.length===0) throw new ExpressError("Invoice not found", 404);
         
-        return res.json(result.rows[0]);
+        return res.json({invoice: result.rows[0]});
         
     } catch(e) {
         return next(e);

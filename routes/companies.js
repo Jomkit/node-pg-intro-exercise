@@ -8,6 +8,8 @@ const router = express.Router();
 const db = require("../db");
 const ExpressError = require("../expressError");
 
+const slugify = require("slugify");
+
 // Remember, all the routes here will be prefixed in app.js 
 // with "/companies" thanks to the Router() function and app.use()
 router.get("/", async (req, res, next) => {
@@ -59,10 +61,15 @@ router.get("/:code", async (req, res, next) => {
 
 router.post("/", async (req, res, next) => {
     try{
-        const {code, name, description} = req.body;
+        const {name, description} = req.body;
+        let slugCode = slugify(name, {
+            replacement: '',
+            lower: true,
+            remove: /[*+~.(){}'"!?:@]/g,
+        })
 
         const results = await db.query(
-            `INSERT INTO companies (code, name, description) values ($1, $2, $3) RETURNING code, name, description`, [code, name, description]
+            `INSERT INTO companies (code, name, description) values ($1, $2, $3) RETURNING code, name, description`, [slugCode, name, description]
         );
         return res.status(201).json({company: results.rows[0]});
 
