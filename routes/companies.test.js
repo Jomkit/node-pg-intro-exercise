@@ -8,18 +8,44 @@ const db = require("../db");
 let testCompany;
 
 beforeEach(async function() {
-    let result = await db.query(`
-    INSERT INTO companies (code, name, description) 
-    VALUES ('tst', 'Test', 'Test company description')
-    RETURNING code, name, description;
-    `);
+    let companyRes = await Promise.all(
+        [
+            db.query(`
+                INSERT INTO companies (code, name, description) 
+                VALUES ('tst', 'Test', 'Test company description')
+                RETURNING *
+            `),
+            db.query(`
+            INSERT INTO industries (code, industry) VALUES ('rnd', 'Research and Development')
+            `),
+            db.query(`
+            INSERT INTO industries_companies (ind_code, comp_code) VALUES ('rnd', 'tst')
+            `)
+        ]
+    ) 
+    // let compRes = await db.query(`
+    // INSERT INTO companies (code, name, description) 
+    // VALUES ('tst', 'Test', 'Test company description')
+    // RETURNING *
+    // `);
+    // let indRes = await db.query(`
+    // INSERT INTO industries (code, industry) VALUES ('rnd', 'Research and Development')
+    // `)
+    // let icResults = await db.query(`
+    // INSERT INTO industries_companies (ind_code, comp_code) VALUES ('rnd', 'tst')
+    // `)
 
-    testCompany = result.rows[0];
+    // testCompany = compRes.rows[0];
+    testCompany = companyRes[0].rows[0];
 })
 
 afterEach(async function() {
     // delete any data created by test
-    await db.query("DELETE FROM companies");
+    await Promise.all([
+        db.query("DELETE FROM companies"), 
+        db.query("DELETE FROM industries"),
+        db.query("DELETE FROM industries_companies")
+    ]);
 });
 
 afterAll(async () => {
@@ -32,7 +58,14 @@ describe("GET /companies", function() {
         const response = await request(app).get('/companies');
         expect(response.statusCode).toEqual(200);
         expect(response.body).toEqual({
-            companies: [testCompany]
+            companies: [
+                {
+                    code: testCompany.code,
+                    description: testCompany.description,
+                    industry: "Research and Development",
+                    name: testCompany.name
+                }
+            ]
         });
     });
 });
@@ -46,6 +79,7 @@ describe("GET /companies/:code", function() {
                 name: 'Test', 
                 description: 'Test company description',
                 code: 'tst',
+                industries: ['Research and Development'],
                 invoices: expect.any(Array)
             }
         });

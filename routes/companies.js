@@ -12,10 +12,25 @@ const slugify = require("slugify");
 
 // Remember, all the routes here will be prefixed in app.js 
 // with "/companies" thanks to the Router() function and app.use()
+// router.get("/", async (req, res, next) => {
+//     try{
+//         const results = await db.query(`SELECT * FROM companies`);
+//         return res.json({companies: results.rows});
+//     }catch(e){
+//         next(e);
+//     }
+// })
+
+// FS 4: add names of industries for a company when viewing details
 router.get("/", async (req, res, next) => {
     try{
-        const results = await db.query(`SELECT * FROM companies`);
-        // return res.json({companies: results.rows});
+        const results = await db.query(`
+        SELECT c.*, i.industry 
+        FROM companies c
+        LEFT JOIN industries_companies AS ic ON c.code = ic.comp_code
+        LEFT JOIN industries AS i ON i.code = ic. ind_code
+        `);
+
         return res.json({companies: results.rows});
     }catch(e){
         next(e);
@@ -44,6 +59,12 @@ router.get("/:code", async (req, res, next) => {
         );
 
         if(companyResults.rows.length === 0) throw new ExpressError('Company not found', 404);
+
+        const compIndResults = await db.query(
+            `SELECT i.industry FROM industries_companies ic
+            JOIN industries i ON ic.ind_code = i.code
+            WHERE ic.comp_code=$1`, [req.params.code]
+        );
         
         const invoiceResults = await db.query(
             `SELECT * FROM invoices WHERE comp_code=$1`, [req.params.code]
@@ -52,6 +73,7 @@ router.get("/:code", async (req, res, next) => {
         const company = companyResults.rows[0];
 
         company.invoices = invoiceResults.rows;
+        company.industries = compIndResults.rows.map(ic => ic.industry);
         
         return res.json({company: company});
     } catch(e){

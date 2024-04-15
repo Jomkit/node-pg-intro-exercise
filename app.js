@@ -15,6 +15,10 @@ app.use("/companies", cRoutes);
 const iRoutes = require("./routes/invoices");
 app.use("/invoices", iRoutes);
 
+// connect to industries
+const indRoutes = require("./routes/industries");
+app.use("/industries", indRoutes);
+
 /** 404 handler */
 
 app.use(function(req, res, next) {
